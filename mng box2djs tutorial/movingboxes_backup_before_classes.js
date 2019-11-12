@@ -184,9 +184,20 @@
         this.body.SetLinearVelocity(new b2Vec2(kv[0], kv[1]));
     };
 
+    // API Part 06 - Declare body class
     var Body = window.Body = function (physics, details) {
+        this.steer = STEER_NONE;
+        this.accelerate = ACC_NONE;
+        this.max_steer_angle = details.max_steer_angle;
+        this.max_speed = details.max_speed;
+        this.power = details.power;
+        this.wheel_angle = 0;
         this.details = details = details || {};
+
+        // Create the definition
         this.definition = new b2BodyDef();
+
+        // Set up the definition
         for (var k in this.definitionDefaults) {
             this.definition[k] = details[k] || this.definitionDefaults[k];
         }
@@ -231,6 +242,7 @@
         this.body.CreateFixture(this.fixtureDef);
 
         if (details.player && details.wheels) {
+            //initialize wheels
             this.wheels = []
             var wheeldef, i;
             for (i = 0; i < details.wheels.length; i++) {
@@ -239,37 +251,6 @@
                 this.wheels.push(new Wheel(wheeldef));
             }
         }
-    };
-
-    var Car = window.Car = function(physics, details, carDetails){
-        Body.call(this, physics, details);
-        this.steer = STEER_NONE;
-        this.accelerate = ACC_NONE;
-        this.wheel_angle = 0;
-        this.max_steer_angle = carDetails.max_steer_angle;
-        this.max_speed = carDetails.max_speed;
-        this.power = carDetails.power;
-    }
-
-    Car.prototype = Object.create(Body.prototype);
-    Car.prototype.constructor = Car;
-
-    Car.prototype.defaults = {
-        width: 5,
-        height: 10,
-        shape: "block",
-    };
-
-    Car.prototype.fixtureDefaults = {
-        density: 1.0,
-        friction: 0.3,
-        restitution: 0.4
-    };
-
-    Car.prototype.definitionDefaults = {
-        linearDamping: 0.15,
-        bullet: true,
-        angularDamping: 0.3,
     };
 
     function vector_len(v) {
@@ -323,6 +304,7 @@
         this.body.SetLinearVelocity(velocity);
     };
 
+    // API Part 07 - Declare definition defaults
     Body.prototype.defaults = {
         shape: "block",
         width: 4,
@@ -449,26 +431,31 @@
         new Body(physics, { color: "red", type: "static", x: 0, y: 25, height: 0.5, width: 120 });
         new Body(physics, { color: "gray", shape: "circle", radius: 4, x: 5, y: 20 });
 
-        var car = new Car(physics, {
+        var car = new Body(physics, {
             color: "yellow",
+            width: 5,
+            height: 10,
+            shape: "block",
             x: 25,
             y: 10,
+            angle: 180,
+            power: 200,
+            max_steer_angle: 20,
+            max_speed: 200,
+
+            linearDamping: 0.15,
+            bullet: true,
+            angularDamping: 0.3,
+
+            density: 1.0,
+            friction: 0.3,
+            restitution: 0.4,  
+
             player: true,
             wheels: [{ 'x': -2.5, 'y': -3.2, 'width': 1, 'length': 1.8, 'revolving': true, 'powered': true }, //top left
             { 'x': 2.5, 'y': -3.2, 'width': 1, 'length': 1.8, 'revolving': true, 'powered': true }, //top right
             { 'x': -2.5, 'y': 3.2, 'width': 1, 'length': 1.8, 'revolving': false, 'powered': false }, //back left
             { 'x': 2.5, 'y': 3.2, 'width': 1, 'length': 1.8, 'revolving': false, 'powered': false }]//back right
-        },{
-            angle: 180,
-            power: 200,
-            max_steer_angle: 20,
-            max_speed: 200,
-            linearDamping: 0.15,
-            bullet: true,
-            angularDamping: 0.3,
-            density: 1.0,
-            friction: 0.3,
-            restitution: 0.4,  
         });
 
         physics.click(function (body) {
