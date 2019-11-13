@@ -156,44 +156,45 @@
             b2Body.b2_dynamicBody;
         this.body = physics.world.CreateBody(this.definition);
 
-        this.fixtures = [];
-        console.log(this.details.fixtures.length);
-        for (i = 0; i < this.details.fixtures.length; i++) {
-            console.log("loop runs");
-            var fixtureDef = new b2FixtureDef();
-            var assignableFeatures = Object.assign(this.details.fixtures[i], this.fixtureDefaults);
-            for (var key in assignableFeatures) {
-                fixtureDef[key] = assignableFeatures[key];
-            }
-            console.log(fixtureDef);
-            this.fixtures.push(fixtureDef);
+        this.fixtureDef = new b2FixtureDef();
+        for (var l in this.fixtureDefaults) {
+            this.fixtureDef[l] = details[l] || this.fixtureDefaults[l];
+        }
+        details.shape = details.shape || this.defaults.shape;
+
+        switch (details.shape) {
+            case "circle":
+                details.radius = details.radius || this.defaults.radius;
+                this.fixtureDef.shape = new b2CircleShape(details.radius);
+                break;
+            case "polygon":
+                this.fixtureDef.shape = new b2PolygonShape();
+                this.fixtureDef.shape.SetAsArray(details.points, details.points.length);
+                break;
+            case "block":
+            default:
+                details.width = details.width || this.defaults.width;
+                details.height = details.height || this.defaults.height;
+                this.fixtureDef.shape = new b2PolygonShape();
+                this.fixtureDef.shape.SetAsBox(details.width / 2,
+                    details.height / 2);
+                break;
         }
 
-        for (j = 0; j < this.fixtures.length; j++) {
-            switch (this.fixtures[j].shape) {
-                case "circle":
-                    this.fixtures[j].radius = this.fixtures[j].radius || this.defaults.radius;
-                    this.fixtures[j].shape = new b2CircleShape(this.fixtures[j].radius);
-                    break;
-                case "polygon":
-                    this.fixtures[j].shape = new b2PolygonShape();
-                    this.fixtures[j].shape.SetAsArray(this.fixtures[j].radius.points,
-                        this.fixtures[j].radius.points.length);
-                    break;
-                case "block":
-                default:
-                    this.fixtures[j].shape = new b2PolygonShape();
-                    this.fixtures[j].shape.SetAsBox(this.fixtures[j].width / 2,
-                        this.fixtures[j].height / 2);
-                    break;
-            }
-            this.body.CreateFixture(this.fixtures[j]);
-        }
-
-
+        this.body.CreateFixture(this.fixtureDef);
     };
 
+    var test = new Body(physics, 
+        { 
+            color: "red", type: "static", 
+            fixtures: [
+                { x: 0, y: 0, height: 50, width: 0.5 },
+            ],
+        });
+        console.log(test);
+
     Body.prototype.defaults = {
+        shape: "block",
         width: 4,
         height: 4,
         radius: 1
@@ -202,12 +203,10 @@
     Body.prototype.fixtureDefaults = {
         density: 2,
         friction: 1,
-        restitution: 0.2,
-        shape: "block",
+        restitution: 0.2
     };
 
     Body.prototype.definitionDefaults = {
-        name: "tim",
         active: true,
         allowSleep: true,
         angle: 0,
@@ -227,31 +226,28 @@
         if (this.details.color) {
             context.fillStyle = this.details.color;
 
-            for (j = 0; j < this.fixtures.length; j++) {
-                switch (this.fixtures[j].shape) {
-                    case "circle":
-                        context.beginPath();
-                        context.arc(0, 0, this.fixtures[j].radius, 0, Math.PI * 2);
-                        context.fill();
-                        break;
-                    case "polygon":
-                        var points = this.fixtures[j].points;
-                        context.beginPath();
-                        context.moveTo(points[0].x, points[0].y);
-                        for (var i = 1; i < points.length; i++) {
-                            context.lineTo(points[i].x, points[i].y);
-                        }
-                        context.fill();
-                        break;
-                    case "block":
-                    default:
-                        context.fillRect(-this.fixtures[j].width / 2,
-                            -this.fixtures[j].height / 2,
-                            this.fixtures[j].width,
-                            this.fixtures[j].height);
-                        break;
-                }
-                this.body.CreateFixture(this.fixtures[j]);
+            switch (this.details.shape) {
+                case "circle":
+                    context.beginPath();
+                    context.arc(0, 0, this.details.radius, 0, Math.PI * 2);
+                    context.fill();
+                    break;
+                case "polygon":
+                    var points = this.details.points;
+                    context.beginPath();
+                    context.moveTo(points[0].x, points[0].y);
+                    for (var i = 1; i < points.length; i++) {
+                        context.lineTo(points[i].x, points[i].y);
+                    }
+                    context.fill();
+                    break;
+                case "block":
+                    context.fillRect(-this.details.width / 2,
+                        -this.details.height / 2,
+                        this.details.width,
+                        this.details.height);
+                default:
+                    break;
             }
         }
 
@@ -575,52 +571,42 @@
         physics = window.physics = new Physics(document.getElementById("b2dCanvas"));
         carImage.addEventListener("load", function () {
             // physics.debug();
-            var test = new Body(physics,
-                {
-                    color: "red", type: "static", name: "test",
-                    fixtures: [
-                        { x: 0, y: 0, height: 50, width: 0.5 },
-                        { x: 51, y: 0, height: 50, width: 0.5 },
-                        { x: 0, y: 0, height: 0.5, width: 120 },
-                        { x: 0, y: 25, height: 0.5, width: 120 },
-                    ],
-                });
-            console.log(test);
-            // new Body(physics, { color: "red", type: "static", x: 51, y: 0, height: 50, width: 0.5 });
-            // new Body(physics, { color: "red", type: "static", x: 0, y: 0, height: 0.5, width: 120 });
-            // new Body(physics, { color: "red", type: "static", x: 0, y: 25, height: 0.5, width: 120 });
-            // new Body(physics, { color: "gray", type: "static", x: 12.5, y: 12, height: 12, width: 0.5 });
-            // new Body(physics, { color: "gray", type: "static", x: 37.5, y: 12, height: 12, width: 0.5 });
-            // new Body(physics, { color: "gray", type: "static", x: 25, y: 6, height: 0.5, width: 25 });
-            // new Body(physics, { color: "gray", type: "static", x: 25, y: 18, height: 0.5, width: 25 });
+            new Body(physics, { color: "red", type: "static", x: 0, y: 0, height: 50, width: 0.5 });
+            new Body(physics, { color: "red", type: "static", x: 51, y: 0, height: 50, width: 0.5 });
+            new Body(physics, { color: "red", type: "static", x: 0, y: 0, height: 0.5, width: 120 });
+            new Body(physics, { color: "red", type: "static", x: 0, y: 25, height: 0.5, width: 120 });
+            new Body(physics, { color: "gray", type: "static", x: 12.5, y: 12, height: 12, width: 0.5 });
+            new Body(physics, { color: "gray", type: "static", x: 37.5, y: 12, height: 12, width: 0.5 });
+            new Body(physics, { color: "gray", type: "static", x: 25, y: 6, height: 0.5, width: 25 });
+            new Body(physics, { color: "gray", type: "static", x: 25, y: 18, height: 0.5, width: 25 });
 
-            // new Body(physics, {
-            //     color: "pink", shape: "polygon", type: "static",
-            //     points: [
-            //         { x: 0, y: 0 },
-            //         { x: 0, y: 4 },
-            //         { x: 10, y: 0 },
-            //         { x: 20, y: 4 }
-            //     ],
-            //     x: 20, y: 5
-            // });
+            new ComplexBody(physics, {
+                color: "pink", shape: "polygon", type: "static",
+                points: [
+                    { x: 0, y: 0 },
+                    { x: 0, y: 4 },
+                    { x: 10, y: 0 },
+                    { x: 20, y: 4 }
+                ],
+                x: 20, y: 5
+            });
 
-            // var car = new Car(physics, {
-            //     color: "yellow",
-            //     x: 45,
-            //     y: 15,
-            //     image: carImage,
-            //     player: true,
-            //     angle: 0,
-            // }, {
-            //     wheels: [{ 'x': -1.1, 'y': -1.4, 'revolving': true, 'powered': true }, //top left
-            //     { 'x': 1.1, 'y': -1.4, 'revolving': true, 'powered': true }, //top right
-            //     { 'x': -1.1, 'y': 1.6, 'revolving': false, 'powered': false }, //back left
-            //     { 'x': 1.1, 'y': 1.6, 'revolving': false, 'powered': false }], //back right
-            //     power: 300,
-            //     max_steer_angle: 30,
-            //     max_speed: 200,
-            // });
+            var car = new Car(physics, {
+                color: "yellow",
+                x: 45,
+                y: 15,
+                image: carImage,
+                player: true,
+                angle: 0,
+            }, {
+                wheels: [{ 'x': -1.1, 'y': -1.4, 'revolving': true, 'powered': true }, //top left
+                { 'x': 1.1, 'y': -1.4, 'revolving': true, 'powered': true }, //top right
+                { 'x': -1.1, 'y': 1.6, 'revolving': false, 'powered': false }, //back left
+                { 'x': 1.1, 'y': 1.6, 'revolving': false, 'powered': false }], //back right
+                power: 300,
+                max_steer_angle: 30,
+                max_speed: 200,
+            });
 
             // var enemy = new Enemy(physics, {
             //     color: "yellow",
