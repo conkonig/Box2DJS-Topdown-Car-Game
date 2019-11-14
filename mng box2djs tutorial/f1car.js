@@ -184,15 +184,6 @@
         this.body.CreateFixture(this.fixtureDef);
     };
 
-    var test = new Body(physics, 
-        { 
-            color: "red", type: "static", 
-            fixtures: [
-                { x: 0, y: 0, height: 50, width: 0.5 },
-            ],
-        });
-        console.log(test);
-
     Body.prototype.defaults = {
         shape: "block",
         width: 4,
@@ -580,7 +571,7 @@
             new Body(physics, { color: "gray", type: "static", x: 25, y: 6, height: 0.5, width: 25 });
             new Body(physics, { color: "gray", type: "static", x: 25, y: 18, height: 0.5, width: 25 });
 
-            new ComplexBody(physics, {
+            new Body(physics, {
                 color: "pink", shape: "polygon", type: "static",
                 points: [
                     { x: 0, y: 0 },
