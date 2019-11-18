@@ -578,7 +578,7 @@
                 max_speed: 200,
             });
 
-            physics.debug();
+            // physics.debug();
             var walls = new Body(physics, {
                 color: "#FBF5AB", x:0, y:0, name: "walls", type: "static",
                 fixtures: [
@@ -596,7 +596,9 @@
             })
 
             var boxes = new Body(physics, {
-                color: "transparent", x: 10.75, y: 12.25,
+                // color: "transparent", 
+                color: "gray",
+                x: 10.75, y: 12.25,
                 name: "boxes", type: "static",
                 fixtures: [
                     {
