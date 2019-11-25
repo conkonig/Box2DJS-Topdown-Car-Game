@@ -1,23 +1,114 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
-    <script src="./box2d.js"></script>
-    <script src="./movingboxes.js"></script>
-    <style>
-        canvas{ background-color: #FBF5AB; 
-            border: 1px solid black; 
-            /* background: url('./images/track.png'),#FBF5AB; */
-            background-position: center;
-            background-size: contain;
-            background-repeat: no-repeat;
+<link rel="stylesheet"
+    href="https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/cargame.css">
+<div class="scaleable-wrapper" id="scaleable-wrapper">
+    <div class="formula-1-interactive" id="formula-1-interactive">
+        <canvas id="b2dCanvas" width="1024" height="520"></canvas>
+        <div class="instructions">
+            <span>Steer:
+                <img id="steer_left" onContextMenu="return false;"
+                    src="https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/images/left.png"
+                    width="60" alt="Arrow keys">
+                <img id="steer_right" onContextMenu="return false;"
+                    src="https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/images/right.png"
+                    width="60" alt="Arrow keys">
+            </span>
+            <span>Brake:
+                <img id="brake" onContextMenu="return false;"
+                    src="https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/images/reverse.png"
+                    width="60" alt="Arrow keys">
+            </span>
+            <span>Accelerate:
+                <img id="accelerate" onContextMenu="return false;"
+                    src="https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/images/space.png"
+                    width="380" alt="Space key"></span>
+
+            <span>Fullscreen:
+                <img onclick="toggleFullscreen()" onContextMenu="return false;"
+                    src="https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/images/fullscreen.png"
+                    width="60" alt="Fullscreen">
+            </span>
+        </div>
+    </div>
+</div>
+<script src="https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/box2d.min.js"></script>
+<script src="https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/cargame.js"></script>
+<script src="https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/confetti.js"></script>
+<script>
+    var jQueryScriptOutputted = false;
+    function initJQuery() {
+        if (typeof (jQuery) == 'undefined') {
+            if (!jQueryScriptOutputted) {
+                jQueryScriptOutputted = true;
+                document.write("<scr" + "ipt type='text/javascript' src='https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></scr" + "ipt>");
+            }
+            setTimeout("initJQuery()", 50);
+        } else {
+            function resizeInteractive() {
+                var $wrapper = $("#scaleable-wrapper");
+                var $interactive = $("#formula-1-interactive");
+                var scale = Math.min(
+                    $wrapper.width() / $interactive.outerWidth(),
+                    $wrapper.height() / $interactive.outerHeight()
+                );
+                $interactive.css({
+                    transform: "translate(-50%, -50%) " + "scale(" + scale + ")",
+                });
+            }
+            $(function () {
+                resizeInteractive();
+            });
+            $(window).resize(function () {
+                resizeInteractive();
+            });
         }
-    </style>
-</head>
-<body>
-    <canvas id="b2dCanvas" width="1024" height="500"></canvas>
-</body> 
-</html>
+    }
+    initJQuery();
+
+    function toggleFullscreen() {
+        var isInFullScreen = (document.fullscreenElement && document.fullscreenElement !== null) ||
+            (document.webkitFullscreenElement && document.webkitFullscreenElement !== null) ||
+            (document.mozFullScreenElement && document.mozFullScreenElement !== null) ||
+            (document.msFullscreenElement && document.msFullscreenElement !== null);
+        if (isInFullScreen) {
+            exitfullscreen();
+        } else {
+            fullscreen();
+        }
+    }
+
+    function fullscreen() {
+        var canvas = document.getElementById('formula-1-interactive');
+        $(canvas).css({
+            margin: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column'
+        });
+        if (canvas.RequestFullScreen) {
+            canvas.RequestFullScreen();
+        } else if (canvas.webkitRequestFullScreen) {
+            canvas.webkitRequestFullScreen();
+        } else if (canvas.mozRequestFullScreen) {
+            canvas.mozRequestFullScreen();
+        } else if (canvas.msRequestFullscreen) {
+            canvas.msRequestFullscreen();
+        } else {
+            alert("This browser doesn't supporter fullscreen");
+        }
+    }
+
+    function exitfullscreen() {
+        var canvas = document.getElementById('formula-1-interactive');
+        $(canvas).css({
+            margin: 'unset', display: 'block', alignItems: 'center', justifyContent: 'center', flexDirection: 'column'
+        });
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        } else {
+            alert("Exit fullscreen doesn't work");
+        }
+    }
+</script>

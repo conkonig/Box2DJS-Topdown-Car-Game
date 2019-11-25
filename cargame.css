@@ -1,0 +1,66 @@
+.scaleable-wrapper {
+    position: relative;
+    height: 540px;
+    margin-bottom: 70px;
+}
+
+.formula-1-interactive {
+    width: 1024px;
+    height: 520px;
+    background: #fff;
+    text-align: center;
+    position: relative;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    transform-origin: center center;
+}
+
+.formula-1-interactive .instructions {
+    padding: 10px;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: 20px;
+    display: flex;
+    justify-content: space-evenly;
+    border: 1px solid #666;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-right-width: 2px;
+}
+
+.formula-1-interactive .instructions span {
+    display: flex;
+    /* text-transform: uppercase; */
+    align-items: center;
+}
+
+.formula-1-interactive .instructions span img {
+    padding-left: 5px;
+}
+
+.formula-1-interactive canvas {
+    background-color: #FBF5AB;
+    border: 1px solid black;
+    background: url('https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/images/track2.png'), #FBF5AB;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+@media only screen and (max-width: 991px){
+    .scaleable-wrapper {
+        height: 300px;
+    }
+}
+
+@media only screen and (max-width: 550px){
+    .scaleable-wrapper {
+        height: 240px;
+    }
+}
+
+@media only screen and (max-width: 370px){
+    .scaleable-wrapper {
+        height: 180px;
+    }
+}

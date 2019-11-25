@@ -1,5 +1,5 @@
 (function () {
-    var b2Vec2 = Box2D.Common.Math.b2Vec2;
+    var b2Vec2 = Box2D.Common.Math.b2Vec2; 
     var b2BodyDef = Box2D.Dynamics.b2BodyDef;
     var b2Body = Box2D.Dynamics.b2Body;
     var b2FixtureDef = Box2D.Dynamics.b2FixtureDef;
@@ -8,6 +8,8 @@
     var b2MassData = Box2D.Collision.Shapes.b2MassData;
     var b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape;
     var b2CircleShape = Box2D.Collision.Shapes.b2CircleShape;
+    var b2EdgeChainDef = Box2D.Collision.Shapes.b2EdgeChainDef;
+    var b2EdgeShape = Box2D.Collision.Shapes.b2EdgeShape;
     var b2DebugDraw = Box2D.Dynamics.b2DebugDraw;
     var STEER_NONE = 0;
     var STEER_RIGHT = 1;
@@ -15,9 +17,12 @@
     var ACC_NONE = 0;
     var ACC_ACCELERATE = 1;
     var ACC_BRAKE = 2;
+    var laps = 0;
+    var maxLaps = 55;
     var KEYS_DOWN = {};
-    var BINDINGS = {
-        accelerate: 38,
+    var gameCompleted = false;
+    var KEYBINDINGS = {
+        accelerate: 32,
         brake: 40,
         steer_left: 37,
         steer_right: 39
@@ -33,15 +38,75 @@
         this.stepAmount = 1 / 60;
     };
 
+    function debounce(func, wait, immediate) {
+        var timeout;
+        return function () {
+            var context = this,
+                args = arguments;
+            var later = function () {
+                timeout = null;
+                if (!immediate) func.apply(context, args);
+            };
+            var callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(context, args);
+        };
+    };
+
+    const checkLapped = debounce(function () {
+        laps = laps + 1;
+        if (laps >= maxLaps) {
+            gameCompleted = true;
+        }
+    }, 1000);
+
+    const restartGame = debounce(function () {
+        window.physics = null;
+        laps = 0;
+        createWorld();
+    }, 1000);
+
+    Physics.prototype.collision = function () {
+        this.listener = new Box2D.Dynamics.b2ContactListener();
+        this.listener.EndContact = function (contact) {
+            fixtureB_name = contact.GetFixtureB().GetBody().GetUserData().details.name;
+            if (fixtureB_name == 'finish') {
+                setTimeout(checkLapped, 500);
+            }
+        }
+        this.listener.PostSolve = function (contact, impulse) {
+            var bodyA = contact.GetFixtureA().GetBody().GetUserData(),
+                bodyB = contact.GetFixtureB().GetBody().GetUserData();
+            try {
+                if (bodyA.contact) { bodyA.contact(contact, impulse, true) }
+                if (bodyB.contact) { bodyB.contact(contact, impulse, false) }
+            } catch (error) {
+                console.log(error);
+            }
+        };
+        this.world.SetContactListener(this.listener);
+    };
+
+    function winGame() {
+        window.physics = null;
+        var confettiSettings = { "target": "b2dCanvas", "max": "600", "size": "2", "animate": true, "props": ["circle", "square", "triangle", "line"], "colors": [[165, 104, 246], [230, 61, 135], [0, 199, 228], [253, 214, 126]], "clock": "25", "rotate": true, "width": "1024", "height": "520" };
+        var confetti = new ConfettiGenerator(confettiSettings);
+        confetti.render();
+    }
+
     Physics.prototype.step = function (dt) {
         this.dtRemaining += dt;
         while (this.dtRemaining > this.stepAmount) {
             this.dtRemaining -= this.stepAmount;
             this.world.Step(this.stepAmount,
-                10, // velocity iterations
-                10);// position iterations
+                10,
+                10);
         }
-        if (this.debugDraw) {
+        if (gameCompleted) {
+            winGame();
+        }
+        else if (this.debugDraw) {
             this.world.DrawDebugData();
         } else {
             var obj = this.world.GetBodyList();
@@ -56,6 +121,12 @@
                 obj = obj.GetNext();
             }
             this.context.restore();
+            this.context.font = "30px Verdana";
+            player = getPlayerObject(true);
+            if (player) {
+                this.context.fillText("Damage: " + Math.round((player.details.damage / player.details.maxDamage) * 100) + "%", 425, 500);
+                this.context.fillText("Lap: " + laps + "/" + maxLaps, 700, 500);
+            }
         }
     };
 
@@ -69,27 +140,18 @@
         this.world.SetDebugDraw(this.debugDraw);
     };
 
-    Physics.prototype.click = function (callback) {
-        var self = this;
-        function handleClick(e) {
-            e.preventDefault();
-            var point = {
-                x: (e.offsetX || e.layerX) / self.scale,
-                y: (e.offsetY || e.layerY) / self.scale
-            };
-            self.world.QueryPoint(function (fixture) {
-                callback(fixture.GetBody(),
-                    fixture,
-                    point);
-            }, point);
-        }
-        this.element.addEventListener("mousedown", handleClick);
-        this.element.addEventListener("touchstart", handleClick);
-    };
-
     Physics.prototype.handleKeys = function (e) {
+        if (([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) || (e.type === 'touchstart' && Object.keys(KEYBINDINGS).indexOf(e.target.id) > -1)) {
+            e.preventDefault();
+        }
         if (e.type === 'keydown') KEYS_DOWN[e.keyCode] = true;
         else if (e.type === 'keyup') KEYS_DOWN[e.keyCode] = false;
+
+        if (e.type === 'mousedown') KEYS_DOWN[KEYBINDINGS[e.target.id]] = true;
+        else if (e.type === 'mouseup') KEYS_DOWN[KEYBINDINGS[e.target.id]] = false;
+
+        if (e.type === 'touchstart') KEYS_DOWN[KEYBINDINGS[e.target.id]] = true;
+        else if (e.type === 'touchend') KEYS_DOWN[KEYBINDINGS[e.target.id]] = false;
     }
 
     function getPlayerObject(player) {
@@ -156,10 +218,6 @@
 
     var Body = window.Body = function (physics, details) {
         this.details = details = details || {};
-        // this.definition = );
-        // for (var k in this.definitionDefaults) {
-        //     this.definition[k] = details[k] || this.definitionDefaults[k];
-        // }
         this.definition = new b2BodyDef(Object.assign(this.definitionDefaults, this.details));
         this.definition.position = new b2Vec2(details.x || 0, details.y || 0);
         this.definition.linearVelocity = new b2Vec2(details.vx || 0, details.vy || 0);
@@ -169,9 +227,10 @@
             b2Body.b2_dynamicBody;
         this.body = physics.world.CreateBody(this.definition);
         this.fixtures = [];
+
         for (i = 0; i < this.details.fixtures.length; i++) {
             var fixtureDef = new b2FixtureDef();
-            var assignableFeatures = Object.assign(this.fixtureDefaults, this.details.fixtures[i]);
+            assignableFeatures = Object.assign({}, this.fixtureDefaults, this.details.fixtures[i]);
             for (var key in assignableFeatures) {
                 fixtureDef[key] = assignableFeatures[key];
             }
@@ -180,6 +239,7 @@
 
         for (j = 0; j < this.fixtures.length; j++) {
             offset = new b2Vec2(this.fixtures[j].x, this.fixtures[j].y);
+
             switch (this.fixtures[j].shapeName) {
                 case "circle":
                     this.fixtures[j].radius = this.fixtures[j].radius || this.defaults.radius;
@@ -214,10 +274,12 @@
     };
 
     Body.prototype.fixtureDefaults = {
+        isSensor: false,
         density: 2,
         friction: 1,
         restitution: 0.2,
         shapeName: "block",
+        name: "arbitrary fixture",
     };
 
     Body.prototype.definitionDefaults = {
@@ -239,7 +301,6 @@
         }
         var pos = this.body.GetPosition(),
             angle = this.body.GetAngle();
-
         context.save();
         context.translate(pos.x, pos.y);
         context.rotate(angle);
@@ -249,7 +310,6 @@
             offset = new b2Vec2(this.fixtures[j].x, this.fixtures[j].y);
             context.save();
             context.translate(offset.x, offset.y);
-
             switch (this.fixtures[j].shapeName) {
                 case "circle":
                     context.beginPath();
@@ -266,11 +326,11 @@
                     context.fill();
                     break;
                 case "image":
-                context.drawImage(this.fixtures[j].image,
-                    -this.fixtures[j].width / 2,
-                    -this.fixtures[j].height / 2,
-                    this.fixtures[j].width,
-                    this.fixtures[j].height);
+                    context.drawImage(this.fixtures[j].image,
+                        -this.fixtures[j].width / 2,
+                        -this.fixtures[j].height / 2,
+                        this.fixtures[j].width,
+                        this.fixtures[j].height);
                     break;
                 case "block":
                 default:
@@ -281,7 +341,6 @@
                         this.fixtures[j].height);
                     break;
             }
-
             context.restore();
         }
         context.restore();
@@ -304,6 +363,7 @@
         this.fixdef = new b2FixtureDef;
         this.fixdef.density = 1;
         this.fixdef.shape = new b2PolygonShape();
+        this.fixdef.isSensor = true;
         this.fixdef.shape.SetAsBox(details.width / 2, details.height / 2);
         this.body.CreateFixture(this.fixdef);
         if (this.revolving) {
@@ -322,8 +382,8 @@
     Wheel.prototype.defaults = {
         shape: "block",
         color: "black",
-        width: 0.7,
-        height: 1.5,
+        width: 0.35,
+        height: 0.75,
         x: 0,
         y: 0,
     };
@@ -438,57 +498,43 @@
     };
 
     Car.prototype.update = function (msDuration) {
-        //kill sideways velocity for all wheels
         var i;
         for (i = 0; i < this.wheels.length; i++) {
             this.wheels[i].killSidewaysVelocity();
         }
-        //calculate the change in wheel's angle for this update, assuming the wheel will reach is maximum angle from zero in 200 ms
         var incr = (this.max_steer_angle / 200) * msDuration;
         if (this.steer == STEER_RIGHT) {
-            this.wheel_angle = Math.min(Math.max(this.wheel_angle, 0) + incr, this.max_steer_angle) //increment angle without going over max steer
+            this.wheel_angle = Math.min(Math.max(this.wheel_angle, 0) + incr, this.max_steer_angle)
         } else if (this.steer == STEER_LEFT) {
-            this.wheel_angle = Math.max(Math.min(this.wheel_angle, 0) - incr, -this.max_steer_angle) //decrement angle without going over max steer
+            this.wheel_angle = Math.max(Math.min(this.wheel_angle, 0) - incr, -this.max_steer_angle)
         } else {
             this.wheel_angle = 0;
         }
-        //update revolving wheels
         var wheels = this.getRevolvingWheels();
         for (i = 0; i < wheels.length; i++) {
             wheels[i].setAngle(this.wheel_angle);
         }
-        var base_vect; //vector pointing in the direction force will be applied to a wheel ; relative to the wheel.
-        //if accelerator is pressed down and speed limit has not been reached, go forwards
+        var base_vect;
         if ((this.accelerate == ACC_ACCELERATE) && (this.getSpeedKMH() < this.max_speed)) {
             base_vect = [0, -1];
         }
         else if (this.accelerate == ACC_BRAKE) {
-            //braking, but still moving forwards - increased force
             if (this.getLocalVelocity()[1] < 0) base_vect = [0, 1.3];
-            //going in reverse - less force
             else base_vect = [0, 0.7];
         }
-        else base_vect = [0, 0];
-        //multiply by engine power, which gives us a force vector relative to the wheel
+        else {
+            base_vect = [0, 0];
+        }
         var fvect = [this.power * base_vect[0], this.power * base_vect[1]];
-        //apply force to each wheel
         wheels = this.getPoweredWheels();
         for (i = 0; i < wheels.length; i++) {
             var position = wheels[i].body.GetWorldCenter();
             wheels[i].body.ApplyForce(wheels[i].body.GetWorldVector(new b2Vec2(fvect[0], fvect[1])), position);
         }
-        //if going very slow, stop - to prevent endless sliding
         if ((this.getSpeedKMH() < 4) && (this.accelerate == ACC_NONE)) {
             this.setSpeed(0);
         }
     }
-
-    var Enemy = window.Enemy = function (physics, details, carDetails) {
-        Car.call(this, physics, details, carDetails);
-    }
-
-    Enemy.prototype = Object.create(Car.prototype);
-    Enemy.prototype.constructor = Car;
 
     var physics,
         lastFrame = new Date().getTime();
@@ -500,188 +546,189 @@
         var dt = msDuration / 1000;
         if (dt > 1 / 15) { dt = 1 / 15; }
 
-        var player = getPlayerObject(true);
-        if (player) {
-            if (KEYS_DOWN[BINDINGS.accelerate]) {
-                player.accelerate = ACC_ACCELERATE;
-            } else if (KEYS_DOWN[BINDINGS.brake]) {
-                player.accelerate = ACC_BRAKE;
-            } else {
-                player.accelerate = ACC_NONE;
+        if (this.physics) {
+            var player = getPlayerObject(true);
+            if (player) {
+                if (KEYS_DOWN[KEYBINDINGS.accelerate]) {
+                    player.accelerate = ACC_ACCELERATE;
+                } else if (KEYS_DOWN[KEYBINDINGS.brake]) {
+                    player.accelerate = ACC_BRAKE;
+                } else {
+                    player.accelerate = ACC_NONE;
+                }
+                if (KEYS_DOWN[KEYBINDINGS.steer_right]) {
+                    player.steer = STEER_RIGHT;
+                } else if (KEYS_DOWN[KEYBINDINGS.steer_left]) {
+                    player.steer = STEER_LEFT;
+                } else {
+                    player.steer = STEER_NONE;
+                }
+                player.update(msDuration);
             }
-            if (KEYS_DOWN[BINDINGS.steer_right]) {
-                player.steer = STEER_RIGHT;
-            } else if (KEYS_DOWN[BINDINGS.steer_left]) {
-                player.steer = STEER_LEFT;
-            } else {
-                player.steer = STEER_NONE;
-            }
-            player.update(msDuration);
+            physics.step(dt);
+            physics.world.ClearForces();
+            lastFrame = tm;
         }
-
-        var enemy = getPlayerObject(false);
-        if (enemy) {
-            // console.log(enemy.body.GetPosition().y);
-            enemyPos = enemy.body.GetPosition();
-            console.log(enemyPos);
-
-            if (enemyPos.y < 16) {
-                enemy.accelerate = ACC_ACCELERATE;
-            }
-            if (enemyPos.x < 10 || enemyPos.x > 35) {
-                enemy.steer = STEER_LEFT;
-            }
-            else {
-                enemy.steer = STEER_NONE;
-            }
-            // else if (KEYS_DOWN[BINDINGS.brake]) {
-            //     car.accelerate = ACC_BRAKE;
-            // } else {
-            //     car.accelerate = ACC_NONE;
-            // }
-            // if (KEYS_DOWN[BINDINGS.steer_right]) {
-            //     car.steer = STEER_RIGHT;
-            // } else if (KEYS_DOWN[BINDINGS.steer_left]) {
-            //     car.steer = STEER_LEFT;
-            // } else {
-            //     car.steer = STEER_NONE;
-            // }
-            enemy.update(msDuration);
-            // console.log(enemy);
-        }
-
-        physics.step(dt);
-        physics.world.ClearForces();
-        lastFrame = tm;
     };
 
     function createWorld() {
         var carImage = new Image();
         physics = window.physics = new Physics(document.getElementById("b2dCanvas"));
         carImage.addEventListener("load", function () {
+            physics.collision();
+            // physics.debug(); 
+
             var car = new Car(physics, {
-                x: 25,
-                y: 21,
+                x: 29,
+                y: 4,
                 player: true,
-                angle: 90,
+                angle: 270,
                 name: "car",
+                damage: 0,
+                maxDamage: 3,
                 fixtures: [
-                    { shapeName: "image", image: carImage, width: 2.5, height: 5 }
+                    { shapeName: "image", image: carImage, width: 1.5, height: 2.5, }
                 ],
             }, {
-                wheels: [{ 'x': -1.1, 'y': -1.4, 'revolving': true, 'powered': true }, //top left
-                { 'x': 1.1, 'y': -1.4, 'revolving': true, 'powered': true }, //top right
-                { 'x': -1.1, 'y': 1.6, 'revolving': false, 'powered': false }, //back left
-                { 'x': 1.1, 'y': 1.6, 'revolving': false, 'powered': false }], //back right
-                power: 200,
-                max_steer_angle: 30,
-                max_speed: 200,
+                wheels: [{ 'x': -0.55, 'y': -.70, 'revolving': true, 'powered': true }, //top left
+                { 'x': .55, 'y': -.70, 'revolving': true, 'powered': true }, //top right
+                { 'x': -.55, 'y': .8, 'revolving': false, 'powered': false }, //back left
+                { 'x': .55, 'y': .8, 'revolving': false, 'powered': false }], //back right
+                power: 35,
+                max_steer_angle: 45,
+                max_speed: 50,
             });
 
-            // physics.debug();
+            car.contact = function (contact, impulse, first) {
+                var magnitude = Math.sqrt(
+                    impulse.normalImpulses[0] * impulse.normalImpulses[0] + impulse.normalImpulses[1] * impulse.normalImpulses[1]),
+                    color = Math.round(magnitude / 2);
+                if (magnitude > 30) {
+                    car.details.damage = car.details.damage + 1;
+                    if (car.details.damage >= car.details.maxDamage) {
+                        setTimeout(restartGame, 300);
+                    }
+                }
+            };
+
+            var finishLine = new Body(physics, {
+                color: "red", x: 0, y: 0, name: "finish", type: "static",
+                fixtures: [
+                    { shapeName: "block", x: 33, y: 4, width: 0.1, height: 5, isSensor: true, }
+                ],
+            });
+
             var walls = new Body(physics, {
-                color: "#FBF5AB", x:0, y:0, name: "walls", type: "static",
+                color: "transparent", x: 0, y: 0, name: "walls", type: "static",
                 fixtures: [
                     {
-                    shapeName: "block", x: 0, y: 0, width: 0.1, height: 50,
-                },{
-                    shapeName: "block", x: 51.2, y: 0, width: 0.1, height: 50,
-                },{
-                    shapeName: "block", x: 0, y: 0, width: 105, height: 0.1,
-                },{
-                    shapeName: "block", x: 0, y: 25, width: 105, height: 0.1,
-                },
-            
-            ],
+                        shapeName: "block", x: 5.5, y: 0, width: 0.1, height: 50,
+                    }, {
+                        shapeName: "block", x: 44, y: 0, width: 0.1, height: 50,
+                    }, {
+                        shapeName: "block", x: 0, y: 1.5, width: 105, height: 0.1,
+                    }, {
+                        shapeName: "block", x: 0, y: 25.5, width: 105, height: 0.1,
+                    },
+                    {
+                        shapeName: "block", x: 26, y: 6.5, width: 25, height: 0.1,
+                    }, {
+                        shapeName: "block", x: 32.75, y: 8.5, width: 11.3, height: 0.1,
+                    }, {
+                        shapeName: "block", x: 27.9, y: 10.5, width: 2, height: 7,
+                    },
+                    {
+                        shapeName: "polygon", x: 45, y: 1.5,
+                        points: [
+                            { x: 0, y: 0 },
+                            { x: 0, y: 4 },
+                            { x: -4, y: 0 }
+                        ]
+                    },
+                    {
+                        shapeName: "polygon", x: 5.25, y: 1.5,
+                        points: [
+                            { x: 4, y: 0 },
+                            { x: 0, y: 4 },
+                            { x: 0, y: 0 }
+                        ]
+                    },
+                    {
+                        shapeName: "polygon", x: 5.5, y: 25,
+                        points: [
+                            { x: 0, y: -3 },
+                            { x: 3, y: 0 },
+                            { x: 0, y: 0 }
+                        ]
+                    },
+                ],
             })
 
             var boxes = new Body(physics, {
-                // color: "transparent", 
-                color: "gray",
-                x: 10.75, y: 12.25,
+                color: "transparent",
+                x: 21, y: 20.5, angle: 0,
                 name: "boxes", type: "static",
                 fixtures: [
                     {
-                        shapeName: "block", x: 15, y: 0, width: 25, height: 10,
-                    },
-                    // {
-                    //     shapeName: "block", x: 5, y: 0, width: 5, height: 5,
-                    // },
-                    // {
-                    //     shapeName: "block", x: 10, y: 0, width: 5, height: 5,
-                    // },
-                    // {
-                    //     shapeName: "polygon", x: 0.25, y: 3,
-                    //     points: [
-                    //         { x: 0, y: 0 },
-                    //         { x: 0, y: 4 },
-                    //         { x: -10, y: 0 }
-                    //     ]
-                    // },
-                    {
-                        shapeName: "circle", radius: 5, x: 2.5, y: 0,
+                        shapeName: "block", x: -.1, y: -2, width: 1.9, height: 12.5,
                     },
                     {
-                        shapeName: "circle", radius: 5, x: 27.5, y: 0,
+                        shapeName: "circle", radius: 1.1, x: 0, y: -7.5,
+                    },
+                    {
+                        shapeName: "circle", radius: 1, x: 17.5, y: -13,
+                    },
+                    {
+                        shapeName: "circle", radius: 1.1, x: 6.75, y: -6.15,
+                    },
+                    {
+                        shapeName: "block", x: 12, y: 2, width: 21.5, height: 5,
+                    },
+                    {
+                        shapeName: "block", x: 18, y: -3, width: 10, height: 7,
+                    },
+                    {
+                        shapeName: "block", x: -8.25, y: -7, width: 4.25, height: 13,
+                    },
+                    {
+                        shapeName: "polygon", x: 13.5, y: -.5,
+                        points: [
+                            { x: -4, y: 0 },
+                            { x: 0, y: -4 },
+                            { x: 0, y: 0 }
+                        ]
+                    },
+                    {
+                        shapeName: "polygon", x: 0.8, y: -.5,
+                        points: [
+                            { x: 0, y: -3.5 },
+                            { x: 3.5, y: 0 },
+                            { x: 0, y: 0 }
+                        ]
+                    },
+                    {
+                        shapeName: "polygon", x: 23, y: -6,
+                        points: [
+                            { x: -4, y: 0 },
+                            { x: 0, y: -4 },
+                            { x: 0, y: 0 }
+                        ]
                     },
                 ],
             });
-
-            // new Body(physics, { color: "red", type: "static", x: 51, y: 0, height: 50, width: 0.5 });
-            // new Body(physics, { color: "red", type: "static", x: 0, y: 0, height: 0.5, width: 120 });
-            // new Body(physics, { color: "red", type: "static", x: 0, y: 25, height: 0.5, width: 120 });
-            // new Body(physics, { color: "gray", type: "static", x: 12.5, y: 12, height: 12, width: 0.5 });
-            // new Body(physics, { color: "gray", type: "static", x: 37.5, y: 12, height: 12, width: 0.5 });
-            // new Body(physics, { color: "gray", type: "static", x: 25, y: 6, height: 0.5, width: 25 });
-            // new Body(physics, { color: "gray", type: "static", x: 25, y: 18, height: 0.5, width: 25 });
-
-            // var circle = new Body(physics, {
-            //     color: "pink",
-            //     type: "static",
-            //     fixtures: [
-            //         {
-            //             shape: "circle",
-            //             radius: 1,
-            //             points: [
-            //                 { x: 0, y: 0 },
-            //                 { x: 0, y: 4 },
-            //                 { x: 10, y: 0 },
-            //                 { x: 20, y: 4 }
-            //             ],
-            //         }
-            //     ],
-            //     x: 20, y: 5
-            // });
-
-            // console.log(circle);
-
-            // var enemy = new Enemy(physics, {
-            //     color: "yellow",
-            //     x: 5,
-            //     y: 15,
-            //     player: false,
-            //     angle: 180,
-            // }, {
-            //     wheels: [{ 'x': -1.1, 'y': -1.4, 'revolving': true, 'powered': true }, //top left
-            //     { 'x': 1.1, 'y': -1.4, 'revolving': true, 'powered': true }, //top right
-            //     { 'x': -1.1, 'y': 1.6, 'revolving': false, 'powered': false }, //back left
-            //     { 'x': 1.1, 'y': 1.6, 'revolving': false, 'powered': false }], //back right
-            //     power: 300,
-            //     max_steer_angle: 30,
-            //     max_speed: 200,
-            // });
-
-            physics.click(function (body) {
-                console.log(body)
-            });
         });
-        carImage.src = "images/f1.png";
+        carImage.src = "https://multimedia.thenational.ae/assets/visual_assets/formula_one_interactive/images/f1.png";
     }
 
     function init() {
         createWorld();
         window.addEventListener('keydown', physics.handleKeys);
         window.addEventListener('keyup', physics.handleKeys);
+        window.addEventListener('mousedown', physics.handleKeys);
+        window.addEventListener('mouseup', physics.handleKeys);
+        window.addEventListener('touchstart', physics.handleKeys);
+        window.addEventListener('touchend', physics.handleKeys);
+        // document.getElementById('carLeft').addEventListener('click', physics.handleKeys);
         requestAnimationFrame(gameLoop);
     }
 
@@ -714,4 +761,3 @@
         };
     }
 }());
-

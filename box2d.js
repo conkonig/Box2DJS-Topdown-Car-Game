@@ -2879,6 +2879,7 @@ Box2D.postDefs = [];
       this.isALoop = true;
       this.vertices = [];
    }
+   
    Box2D.inherit(b2EdgeShape, Box2D.Collision.Shapes.b2Shape);
    b2EdgeShape.prototype.__super = Box2D.Collision.Shapes.b2Shape.prototype;
    b2EdgeShape.b2EdgeShape = function () {
